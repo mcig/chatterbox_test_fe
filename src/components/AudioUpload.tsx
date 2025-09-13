@@ -1,10 +1,10 @@
-import React, { useState, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Alert } from '@/components/ui/alert';
-import { Upload, X, FileAudio, AlertCircle } from 'lucide-react';
+import React, { useState, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { Upload, X, FileAudio, AlertCircle } from "lucide-react";
 
 interface AudioUploadProps {
   label: string;
@@ -25,7 +25,7 @@ export default function AudioUpload({
   accept = "audio/*",
   disabled = false,
   required = false,
-  className = ""
+  className = "",
 }: AudioUploadProps) {
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -33,15 +33,15 @@ export default function AudioUpload({
 
   const validateFile = (selectedFile: File): boolean => {
     // Check file type
-    if (!selectedFile.type.startsWith('audio/')) {
-      setError('Please upload an audio file');
+    if (!selectedFile.type.startsWith("audio/")) {
+      setError("Please upload an audio file");
       return false;
     }
 
     // Check file size (limit to 50MB)
     const maxSize = 50 * 1024 * 1024; // 50MB
     if (selectedFile.size > maxSize) {
-      setError('File size must be less than 50MB');
+      setError("File size must be less than 50MB");
       return false;
     }
 
@@ -77,7 +77,7 @@ export default function AudioUpload({
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault();
     setIsDragOver(false);
-    
+
     if (disabled) return;
 
     const droppedFile = event.dataTransfer.files[0];
@@ -96,31 +96,27 @@ export default function AudioUpload({
     onFileChange(null);
     setError(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const formatDuration = (file: File): string => {
-    // This is a placeholder - in a real implementation, you'd need to
-    // decode the audio file to get the actual duration
-    return 'Unknown duration';
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   return (
     <div className={`space-y-2 ${className}`}>
-      <Label htmlFor={`audio-upload-${label.toLowerCase().replace(/\s+/g, '-')}`}>
+      <Label
+        htmlFor={`audio-upload-${label.toLowerCase().replace(/\s+/g, "-")}`}
+      >
         {label}
         {required && <span className="text-destructive ml-1">*</span>}
       </Label>
-      
+
       {description && (
         <p className="text-sm text-muted-foreground">{description}</p>
       )}
@@ -128,7 +124,7 @@ export default function AudioUpload({
       {/* Hidden file input */}
       <Input
         ref={fileInputRef}
-        id={`audio-upload-${label.toLowerCase().replace(/\s+/g, '-')}`}
+        id={`audio-upload-${label.toLowerCase().replace(/\s+/g, "-")}`}
         type="file"
         accept={accept}
         onChange={handleInputChange}
@@ -140,9 +136,17 @@ export default function AudioUpload({
       <div
         className={`
           relative border-2 border-dashed rounded-lg p-6 text-center transition-colors
-          ${isDragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50'}
-          ${file ? 'border-primary bg-primary/5' : ''}
+          ${
+            isDragOver
+              ? "border-primary bg-primary/5"
+              : "border-muted-foreground/25"
+          }
+          ${
+            disabled
+              ? "opacity-50 cursor-not-allowed"
+              : "cursor-pointer hover:border-primary/50"
+          }
+          ${file ? "border-primary bg-primary/5" : ""}
         `}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -161,7 +165,7 @@ export default function AudioUpload({
                   {formatFileSize(file.size)}
                 </Badge>
                 <Badge variant="outline" className="text-xs">
-                  {file.type.split('/')[1].toUpperCase()}
+                  {file.type.split("/")[1].toUpperCase()}
                 </Badge>
               </div>
             </div>
@@ -184,11 +188,17 @@ export default function AudioUpload({
         ) : (
           <div className="space-y-3">
             <div className="flex items-center justify-center">
-              <Upload className={`w-8 h-8 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
+              <Upload
+                className={`w-8 h-8 ${
+                  isDragOver ? "text-primary" : "text-muted-foreground"
+                }`}
+              />
             </div>
             <div className="space-y-1">
               <p className="text-sm font-medium">
-                {isDragOver ? 'Drop your audio file here' : 'Click to upload or drag and drop'}
+                {isDragOver
+                  ? "Drop your audio file here"
+                  : "Click to upload or drag and drop"}
               </p>
               <p className="text-xs text-muted-foreground">
                 Audio files up to 50MB (MP3, WAV, M4A, etc.)
