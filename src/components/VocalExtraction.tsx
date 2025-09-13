@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -8,16 +8,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import {
-  Loader2,
-  Music,
-  Mic,
-  Download,
-  Play,
-  Pause,
-  Volume2,
-} from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Loader2, Music, Mic } from "lucide-react";
 import AudioUpload from "./AudioUpload";
 import AudioPlayer from "./AudioPlayer";
 
@@ -32,7 +24,6 @@ export default function VocalExtraction({
   className = "",
 }: VocalExtractionProps) {
   const [inputFile, setInputFile] = useState<File | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{
@@ -42,7 +33,8 @@ export default function VocalExtraction({
   } | null>(null);
   const [progress, setProgress] = useState(0);
   const [engineLoaded, setEngineLoaded] = useState(false);
-  const [tf, setTf] = useState<any>(null);
+  const [tf, setTf] = useState<typeof import("@tensorflow/tfjs") | null>(null);
+  const [outputFormat, setOutputFormat] = useState<"mp3" | "wav">("mp3");
 
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -95,10 +87,16 @@ export default function VocalExtraction({
     file: File
   ): Promise<{ vocals: string; accompaniment: string }> => {
     return new Promise((resolve, reject) => {
+      // Set a timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        reject(new Error("Audio processing timed out after 30 seconds"));
+      }, 30000);
+
       try {
         // Create audio context
         const audioContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
+          (window as unknown as { webkitAudioContext: typeof AudioContext })
+            .webkitAudioContext)();
         audioContextRef.current = audioContext;
 
         // Create a simple audio processing pipeline
@@ -106,29 +104,54 @@ export default function VocalExtraction({
         reader.onload = async (e) => {
           try {
             const arrayBuffer = e.target?.result as ArrayBuffer;
-            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+            // Add timeout for audio decoding
+            const decodePromise = audioContext.decodeAudioData(arrayBuffer);
+            const timeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new Error("Audio decoding timed out")),
+                10000
+              )
+            );
+
+            const audioBuffer = await Promise.race([
+              decodePromise,
+              timeoutPromise,
+            ]);
 
             // Simple vocal extraction using spectral gating (placeholder implementation)
             // In a real implementation, you would use a pre-trained model
             const { vocals, accompaniment } = await extractVocals(audioBuffer);
 
-            // Convert to base64
-            const vocalsBase64 = await audioBufferToBase64(vocals);
+            // Convert to base64 with selected format
+            const vocalsBase64 = await audioBufferToBase64(
+              vocals,
+              outputFormat
+            );
             const accompanimentBase64 = await audioBufferToBase64(
-              accompaniment
+              accompaniment,
+              outputFormat
             );
 
+            clearTimeout(timeout);
             resolve({
               vocals: vocalsBase64,
               accompaniment: accompanimentBase64,
             });
           } catch (err) {
+            clearTimeout(timeout);
             reject(err);
           }
         };
 
+        reader.onerror = () => {
+          clearTimeout(timeout);
+          reject(new Error("Failed to read audio file"));
+        };
+
         reader.readAsArrayBuffer(file);
       } catch (err) {
+        clearTimeout(timeout);
         reject(err);
       }
     });
@@ -208,11 +231,14 @@ export default function VocalExtraction({
       if (tf) {
         try {
           // Convert to tensors for processing (shape: [2, length])
-          const vocalsTensor = tf.tensor2d([vocalsLeft, vocalsRight]);
-          const accompanimentTensor = tf.tensor2d([
-            accompanimentLeft,
-            accompanimentRight,
-          ]);
+          const vocalsTensor = tf.tensor2d(
+            [Array.from(vocalsLeft), Array.from(vocalsRight)],
+            [2, length]
+          );
+          const accompanimentTensor = tf.tensor2d(
+            [Array.from(accompanimentLeft), Array.from(accompanimentRight)],
+            [2, length]
+          );
 
           // Apply soft limiting to prevent clipping
           const vocalsEnhanced = tf.tanh(vocalsTensor.mul(1.2));
@@ -224,10 +250,10 @@ export default function VocalExtraction({
 
           // Copy back to buffers
           for (let i = 0; i < length; i++) {
-            vocalsLeft[i] = vocalsData[i];
-            vocalsRight[i] = vocalsData[i + length];
-            accompanimentLeft[i] = accompanimentData[i];
-            accompanimentRight[i] = accompanimentData[i + length];
+            vocalsLeft[i] = vocalsData[i] as number;
+            vocalsRight[i] = vocalsData[i + length] as number;
+            accompanimentLeft[i] = accompanimentData[i] as number;
+            accompanimentRight[i] = accompanimentData[i + length] as number;
           }
 
           // Clean up tensors
@@ -317,6 +343,17 @@ export default function VocalExtraction({
   };
 
   const audioBufferToBase64 = async (
+    audioBuffer: AudioBuffer,
+    format: "wav" | "mp3" = "mp3"
+  ): Promise<string> => {
+    if (format === "wav") {
+      return audioBufferToWavBase64(audioBuffer);
+    } else {
+      return audioBufferToMp3Base64(audioBuffer);
+    }
+  };
+
+  const audioBufferToWavBase64 = async (
     audioBuffer: AudioBuffer
   ): Promise<string> => {
     const { length, sampleRate, numberOfChannels } = audioBuffer;
@@ -369,7 +406,25 @@ export default function VocalExtraction({
     return btoa(binary);
   };
 
+  const audioBufferToMp3Base64 = async (
+    audioBuffer: AudioBuffer
+  ): Promise<string> => {
+    // For now, always use WAV format as MP3 encoding in browser is complex
+    // and MediaRecorder doesn't actually produce MP3 files
+    console.log(
+      "Converting to WAV format (MP3 encoding not available in browser)"
+    );
+    return audioBufferToWavBase64(audioBuffer);
+  };
+
   const handleExtractVocals = async () => {
+    console.log("handleExtractVocals called, isProcessing:", isProcessing);
+
+    if (isProcessing) {
+      console.log("Already processing, returning early");
+      return; // Prevent multiple clicks
+    }
+
     if (!inputFile) {
       setError("Please select an audio file");
       return;
@@ -382,6 +437,7 @@ export default function VocalExtraction({
       return;
     }
 
+    console.log("Setting isProcessing to true");
     setIsProcessing(true);
     setError(null);
     setResult(null);
@@ -391,26 +447,47 @@ export default function VocalExtraction({
       // Convert original file to base64 for display
       const reader = new FileReader();
       reader.onload = async () => {
-        const originalBase64 = (reader.result as string).split(",")[1];
+        try {
+          const originalBase64 = (reader.result as string).split(",")[1];
 
-        setProgress(25);
+          setProgress(25);
+          console.log("Starting audio processing...");
 
-        // Process with AI
-        const { vocals, accompaniment } = await processAudioWithAI(inputFile);
+          // Process with AI
+          const { vocals, accompaniment } = await processAudioWithAI(inputFile);
 
-        setProgress(100);
+          setProgress(100);
+          console.log("Audio processing completed successfully");
 
-        setResult({
-          vocals,
-          accompaniment,
-          original: originalBase64,
-        });
+          setResult({
+            vocals,
+            accompaniment,
+            original: originalBase64,
+          });
+        } catch (err) {
+          console.error("Error during audio processing:", err);
+          setError(
+            err instanceof Error ? err.message : "Failed to extract vocals"
+          );
+        } finally {
+          console.log("Setting isProcessing to false in reader.onload finally");
+          setIsProcessing(false);
+          setProgress(0);
+        }
+      };
+
+      reader.onerror = () => {
+        console.error("FileReader error");
+        setError("Failed to read the audio file");
+        setIsProcessing(false);
+        setProgress(0);
       };
 
       reader.readAsDataURL(inputFile);
     } catch (err) {
+      console.error("Error in handleExtractVocals:", err);
       setError(err instanceof Error ? err.message : "Failed to extract vocals");
-    } finally {
+      console.log("Setting isProcessing to false in outer catch");
       setIsProcessing(false);
       setProgress(0);
     }
@@ -466,10 +543,33 @@ export default function VocalExtraction({
             required
           />
 
+          <div className="space-y-2">
+            <Label htmlFor="output-format">Output Format</Label>
+            <select
+              id="output-format"
+              value={outputFormat}
+              onChange={(e) => setOutputFormat(e.target.value as "mp3" | "wav")}
+              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+              disabled={isProcessing}
+            >
+              <option value="mp3">MP3 (Compressed - Smaller files)</option>
+              <option value="wav">WAV (Uncompressed - Larger files)</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              {outputFormat === "mp3"
+                ? "Note: MP3 format will be converted to WAV in browser (MP3 encoding not available)"
+                : "WAV format provides lossless quality but larger files"}
+            </p>
+          </div>
+
           <Button
             onClick={handleExtractVocals}
             disabled={isProcessing || !inputFile}
             className="w-full"
+            style={{
+              opacity: isProcessing || !inputFile ? 0.5 : 1,
+              pointerEvents: isProcessing || !inputFile ? "none" : "auto",
+            }}
           >
             {isProcessing ? (
               <>
@@ -507,7 +607,7 @@ export default function VocalExtraction({
             audioBase64={result.vocals}
             title="Extracted Vocals"
             description="AI-extracted vocal track using TensorFlow.js"
-            filename={`vocals_${Date.now()}.wav`}
+            filename={`vocals_${Date.now()}.${outputFormat}`}
             className="lg:col-span-1"
           />
 
@@ -515,7 +615,7 @@ export default function VocalExtraction({
             audioBase64={result.accompaniment}
             title="Background Music"
             description="Instrumental/accompaniment track"
-            filename={`accompaniment_${Date.now()}.wav`}
+            filename={`accompaniment_${Date.now()}.${outputFormat}`}
             className="lg:col-span-1"
           />
 

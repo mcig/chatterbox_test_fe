@@ -1,9 +1,15 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Play, Pause, Download, Volume2, Loader2 } from 'lucide-react';
-import { runPodAPI } from '@/services/api';
+import { useRef, useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Play, Pause, Download, Volume2, Loader2 } from "lucide-react";
+import { runPodAPI } from "@/services/api";
 
 interface AudioPlayerProps {
   audioBase64: string;
@@ -18,29 +24,29 @@ interface AudioPlayerProps {
 }
 
 const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'fr', name: 'French' },
-  { code: 'es', name: 'Spanish' },
-  { code: 'de', name: 'German' },
-  { code: 'it', name: 'Italian' },
-  { code: 'pt', name: 'Portuguese' },
-  { code: 'ru', name: 'Russian' },
-  { code: 'ja', name: 'Japanese' },
-  { code: 'ko', name: 'Korean' },
-  { code: 'zh', name: 'Chinese' },
-  { code: 'ar', name: 'Arabic' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'th', name: 'Thai' },
-  { code: 'vi', name: 'Vietnamese' },
-  { code: 'nl', name: 'Dutch' },
-  { code: 'sv', name: 'Swedish' },
-  { code: 'da', name: 'Danish' },
-  { code: 'no', name: 'Norwegian' },
-  { code: 'fi', name: 'Finnish' },
-  { code: 'pl', name: 'Polish' },
-  { code: 'tr', name: 'Turkish' },
-  { code: 'el', name: 'Greek' },
-  { code: 'he', name: 'Hebrew' }
+  { code: "en", name: "English" },
+  { code: "fr", name: "French" },
+  { code: "es", name: "Spanish" },
+  { code: "de", name: "German" },
+  { code: "it", name: "Italian" },
+  { code: "pt", name: "Portuguese" },
+  { code: "ru", name: "Russian" },
+  { code: "ja", name: "Japanese" },
+  { code: "ko", name: "Korean" },
+  { code: "zh", name: "Chinese" },
+  { code: "ar", name: "Arabic" },
+  { code: "hi", name: "Hindi" },
+  { code: "th", name: "Thai" },
+  { code: "vi", name: "Vietnamese" },
+  { code: "nl", name: "Dutch" },
+  { code: "sv", name: "Swedish" },
+  { code: "da", name: "Danish" },
+  { code: "no", name: "Norwegian" },
+  { code: "fi", name: "Finnish" },
+  { code: "pl", name: "Polish" },
+  { code: "tr", name: "Turkish" },
+  { code: "el", name: "Greek" },
+  { code: "he", name: "Hebrew" },
 ];
 
 export default function AudioPlayer({
@@ -52,7 +58,7 @@ export default function AudioPlayer({
   modelType,
   languageId,
   voiceCloned,
-  className = ""
+  className = "",
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -67,7 +73,7 @@ export default function AudioPlayer({
       const blob = runPodAPI.createAudioBlob(audioBase64);
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
-      
+
       return () => {
         URL.revokeObjectURL(url);
       };
@@ -108,22 +114,22 @@ export default function AudioPlayer({
       setIsLoading(false);
     };
 
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('pause', handlePause);
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('loadstart', handleLoadStart);
-    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("loadstart", handleLoadStart);
+    audio.addEventListener("canplay", handleCanPlay);
 
     return () => {
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('pause', handlePause);
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('loadstart', handleLoadStart);
-      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("loadstart", handleLoadStart);
+      audio.removeEventListener("canplay", handleCanPlay);
     };
   }, [audioUrl]);
 
@@ -137,7 +143,7 @@ export default function AudioPlayer({
         await audioRef.current.play();
       }
     } catch (error) {
-      console.error('Error playing audio:', error);
+      console.error("Error playing audio:", error);
     }
   };
 
@@ -150,11 +156,11 @@ export default function AudioPlayer({
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const getLanguageName = (code: string): string => {
-    return LANGUAGES.find(lang => lang.code === code)?.name || code;
+    return LANGUAGES.find((lang) => lang.code === code)?.name || code;
   };
 
   return (
@@ -207,7 +213,7 @@ export default function AudioPlayer({
             ) : (
               <Play className="w-4 h-4" />
             )}
-            {isLoading ? 'Loading...' : isPlaying ? 'Pause' : 'Play'}
+            {isLoading ? "Loading..." : isPlaying ? "Pause" : "Play"}
           </Button>
 
           <Button
@@ -250,7 +256,9 @@ export default function AudioPlayer({
         {/* Native Audio Controls (Fallback) */}
         {audioUrl && (
           <div className="pt-2 border-t">
-            <p className="text-sm text-muted-foreground mb-2">Or use native controls:</p>
+            <p className="text-sm text-muted-foreground mb-2">
+              Or use native controls:
+            </p>
             <audio
               src={audioUrl}
               controls

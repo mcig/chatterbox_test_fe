@@ -165,7 +165,7 @@ export default function TTSComponent() {
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
           <Volume2 className="w-8 h-8" />
-          ChatterBox TTS & Voice Cloning
+          m.cig TTS & Voice Cloning
         </h1>
         <p className="text-muted-foreground">
           Transform text to speech, clone voices, and extract vocals with
