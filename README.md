@@ -1,54 +1,59 @@
-# React + TypeScript + Vite
+# ChatterBox TTS & Voice Cloning Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern React frontend for the ChatterBox TTS and Voice Cloning system, built with TypeScript and Vite.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Text-to-Speech (TTS)**: Generate speech from text with support for 23+ languages
+- **Voice Cloning**: Clone voices for TTS generation using voice samples
+- **Voice-to-Voice Cloning**: Clone a voice from one audio file to another
+- **Audio Player**: Built-in audio player with download functionality
+- **Modern UI**: Clean, responsive interface built with Radix UI and Tailwind CSS
 
-## Expanding the ESLint configuration
+## Setup
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1. **Install dependencies**:
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+   ```bash
+   npm install
+   ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+2. **Configure RunPod API**:
+   Create a `.env` file in the root directory with your RunPod credentials:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+   ```env
+   VITE_RUNPOD_ENDPOINT=your-runpod-endpoint-id
+   VITE_RUNPOD_API_KEY=your-runpod-api-key
+   ```
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+3. **Start the development server**:
+   ```bash
+   npm run dev
+   ```
+
+## Usage
+
+### Text-to-Speech
+
+1. Enter text in the text area
+2. Optionally select a language (defaults to English)
+3. Optionally upload a voice sample for voice cloning
+4. Click "Generate Speech"
+
+### Voice Cloning
+
+1. Upload a source audio file
+2. Upload a target voice sample
+3. Click "Clone Voice"
+
+## API Integration
+
+The frontend communicates directly with RunPod's API using the serverless handler. Make sure your RunPod endpoint is deployed and accessible.
+
+## Technologies
+
+- React 19 with TypeScript
+- Vite for build tooling
+- Radix UI for accessible components
+- Tailwind CSS for styling
+- Lucide React for icons
