@@ -177,7 +177,7 @@ export default function TTSComponent() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="w-full">
           <TabsTrigger value="tts" className="flex items-center gap-2">
             <Mic className="w-4 h-4" />
             Text to Speech
