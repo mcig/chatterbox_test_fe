@@ -21,6 +21,7 @@ interface AudioPlayerProps {
   languageId?: string;
   voiceCloned?: boolean;
   className?: string;
+  format?: "mp3" | "wav";
 }
 
 const LANGUAGES = [
@@ -59,6 +60,7 @@ export default function AudioPlayer({
   languageId,
   voiceCloned,
   className = "",
+  format = "wav",
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -70,7 +72,8 @@ export default function AudioPlayer({
   // Create audio URL from base64
   useEffect(() => {
     if (audioBase64) {
-      const blob = runPodAPI.createAudioBlob(audioBase64);
+      const mimeType = format === "wav" ? "audio/wav" : "audio/mpeg";
+      const blob = runPodAPI.createAudioBlob(audioBase64, mimeType);
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
 
@@ -78,7 +81,7 @@ export default function AudioPlayer({
         URL.revokeObjectURL(url);
       };
     }
-  }, [audioBase64]);
+  }, [audioBase64, format]);
 
   // Handle audio events
   useEffect(() => {

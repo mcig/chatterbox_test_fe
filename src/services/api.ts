@@ -4,6 +4,7 @@ export interface TTSRequest {
   language_id?: string;
   voice_sample_base64?: string;
   return_format?: "base64";
+  output_format?: "mp3" | "wav";
   repetition_penalty?: number;
   min_p?: number;
   top_p?: number;
@@ -17,6 +18,7 @@ export interface VoiceCloneRequest {
   source_audio_base64: string;
   target_voice_base64: string;
   return_format?: "base64";
+  output_format?: "mp3" | "wav";
 }
 
 export interface TTSResponse {
@@ -206,7 +208,7 @@ class RunPodAPI {
     });
   }
 
-  createAudioBlob(base64Audio: string, mimeType: string = "audio/wav"): Blob {
+  createAudioBlob(base64Audio: string, mimeType: string = "audio/mpeg"): Blob {
     const audioData = Uint8Array.from(atob(base64Audio), (c) =>
       c.charCodeAt(0)
     );
@@ -215,7 +217,7 @@ class RunPodAPI {
 
   downloadAudio(
     base64Audio: string,
-    filename: string = `generated_audio_${Date.now()}.wav`
+    filename: string = `generated_audio_${Date.now()}.mp3`
   ): void {
     const audioBlob = this.createAudioBlob(base64Audio);
     const url = URL.createObjectURL(audioBlob);

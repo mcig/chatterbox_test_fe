@@ -23,8 +23,10 @@ import {
 } from "lucide-react";
 import AudioUpload from "./AudioUpload";
 import AudioPlayer from "./AudioPlayer";
+import FormatSelector from "./FormatSelector";
 import { runPodAPI, TTSRequest, VoiceCloneRequest } from "@/services/api";
 import { useTTSStore } from "@/stores/ttsStore";
+import { useFormatStore } from "@/stores/formatStore";
 import { useJobPolling } from "@/hooks/useJobPolling";
 
 // Lazy load the vocal extraction component
@@ -54,9 +56,10 @@ export default function TTSComponent() {
   const [targetVoice, setTargetVoice] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState("tts");
 
-  // Zustand store
+  // Zustand stores
   const { currentJobId, startJob, setCurrentJob, getCurrentJob, isJobRunning } =
     useTTSStore();
+  const { outputFormat } = useFormatStore();
 
   const currentJob = getCurrentJob();
   const { manualPoll } = useJobPolling(currentJobId);
@@ -71,6 +74,7 @@ export default function TTSComponent() {
         mode: "tts",
         text: text.trim(),
         return_format: "base64",
+        output_format: outputFormat,
       };
 
       // Add language if specified (for multilingual)
@@ -107,6 +111,7 @@ export default function TTSComponent() {
         source_audio_base64: await runPodAPI.convertFileToBase64(sourceAudio),
         target_voice_base64: await runPodAPI.convertFileToBase64(targetVoice),
         return_format: "base64",
+        output_format: outputFormat,
       };
 
       // Start async job
@@ -243,6 +248,8 @@ export default function TTSComponent() {
                 />
               </div>
 
+              <FormatSelector disabled={isJobRunning(currentJobId || "")} />
+
               <Button
                 onClick={handleTTS}
                 disabled={isJobRunning(currentJobId || "") || !text.trim()}
@@ -284,6 +291,8 @@ export default function TTSComponent() {
                   required
                 />
               </div>
+
+              <FormatSelector disabled={isJobRunning(currentJobId || "")} />
 
               <Button
                 onClick={handleVoiceClone}
@@ -388,9 +397,10 @@ export default function TTSComponent() {
                 modelType={currentJob.result.model_type}
                 languageId={currentJob.result.language_id}
                 voiceCloned={currentJob.result.voice_cloned}
+                format={outputFormat}
                 filename={`${
                   currentJob.result.voice_cloned ? "voice_cloned" : "tts"
-                }_${Date.now()}.wav`}
+                }_${Date.now()}.${outputFormat}`}
               />
             )}
           </CardContent>

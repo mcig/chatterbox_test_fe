@@ -8,10 +8,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
-import { Label } from "@/components/ui/label";
 import { Loader2, Music, Mic } from "lucide-react";
 import AudioUpload from "./AudioUpload";
 import AudioPlayer from "./AudioPlayer";
+import FormatSelector from "./FormatSelector";
+import { useFormatStore } from "@/stores/formatStore";
 
 // TensorFlow.js-based vocal extraction
 // Uses center channel extraction and spectral processing for better results
@@ -34,7 +35,7 @@ export default function VocalExtraction({
   const [progress, setProgress] = useState(0);
   const [engineLoaded, setEngineLoaded] = useState(false);
   const [tf, setTf] = useState<typeof import("@tensorflow/tfjs") | null>(null);
-  const [outputFormat, setOutputFormat] = useState<"mp3" | "wav">("mp3");
+  const { outputFormat } = useFormatStore();
 
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -543,24 +544,7 @@ export default function VocalExtraction({
             required
           />
 
-          <div className="space-y-2">
-            <Label htmlFor="output-format">Output Format</Label>
-            <select
-              id="output-format"
-              value={outputFormat}
-              onChange={(e) => setOutputFormat(e.target.value as "mp3" | "wav")}
-              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-              disabled={isProcessing}
-            >
-              <option value="mp3">MP3 (Compressed - Smaller files)</option>
-              <option value="wav">WAV (Uncompressed - Larger files)</option>
-            </select>
-            <p className="text-xs text-muted-foreground">
-              {outputFormat === "mp3"
-                ? "Note: MP3 format will be converted to WAV in browser (MP3 encoding not available)"
-                : "WAV format provides lossless quality but larger files"}
-            </p>
-          </div>
+          <FormatSelector disabled={isProcessing} />
 
           <Button
             onClick={handleExtractVocals}
@@ -608,6 +592,7 @@ export default function VocalExtraction({
             title="Extracted Vocals"
             description="AI-extracted vocal track using TensorFlow.js"
             filename={`vocals_${Date.now()}.${outputFormat}`}
+            format={outputFormat}
             className="lg:col-span-1"
           />
 
@@ -616,6 +601,7 @@ export default function VocalExtraction({
             title="Background Music"
             description="Instrumental/accompaniment track"
             filename={`accompaniment_${Date.now()}.${outputFormat}`}
+            format={outputFormat}
             className="lg:col-span-1"
           />
 
@@ -623,7 +609,8 @@ export default function VocalExtraction({
             audioBase64={result.original}
             title="Original Audio"
             description="Original input file"
-            filename={`original_${Date.now()}.wav`}
+            filename={`original_${Date.now()}.${outputFormat}`}
+            format={outputFormat}
             className="lg:col-span-1"
           />
         </div>
