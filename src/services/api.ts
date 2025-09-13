@@ -39,6 +39,14 @@ export interface VoiceCloneResponse {
   mode?: string;
 }
 
+export interface JobResponse {
+  id: string;
+  status: "IN_QUEUE" | "IN_PROGRESS" | "COMPLETED" | "FAILED" | "CANCELLED";
+  output?: TTSResponse | VoiceCloneResponse;
+  error?: string;
+  executionTime?: number;
+}
+
 class RunPodAPI {
   private endpoint: string;
   private apiKey: string;
@@ -54,9 +62,9 @@ class RunPodAPI {
     }
   }
 
-  private async makeRequest(
+  private async makeRunRequest(
     input: TTSRequest | VoiceCloneRequest
-  ): Promise<any> {
+  ): Promise<JobResponse> {
     if (!this.endpoint || !this.apiKey) {
       throw new Error(
         "RunPod API not configured. Please check your environment variables."
@@ -64,7 +72,7 @@ class RunPodAPI {
     }
 
     const response = await fetch(
-      `https://api.runpod.ai/v2/${this.endpoint}/runsync`,
+      `https://api.runpod.ai/v2/${this.endpoint}/run`,
       {
         method: "POST",
         headers: {
@@ -83,10 +91,79 @@ class RunPodAPI {
     return data;
   }
 
+  private async getJobStatus(jobId: string): Promise<JobResponse> {
+    if (!this.endpoint || !this.apiKey) {
+      throw new Error(
+        "RunPod API not configured. Please check your environment variables."
+      );
+    }
+
+    const response = await fetch(
+      `https://api.runpod.ai/v2/${this.endpoint}/status/${jobId}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  }
+
+  async generateTTSAsync(request: TTSRequest): Promise<JobResponse> {
+    try {
+      const data = await this.makeRunRequest(request);
+      return data;
+    } catch (error) {
+      console.error("TTS API Error:", error);
+      throw error;
+    }
+  }
+
+  async cloneVoiceAsync(request: VoiceCloneRequest): Promise<JobResponse> {
+    try {
+      const data = await this.makeRunRequest(request);
+      return data;
+    } catch (error) {
+      console.error("Voice Clone API Error:", error);
+      throw error;
+    }
+  }
+
+  async pollJobStatus(jobId: string): Promise<JobResponse> {
+    try {
+      const data = await this.getJobStatus(jobId);
+      return data;
+    } catch (error) {
+      console.error("Job Status API Error:", error);
+      throw error;
+    }
+  }
+
+  // Legacy sync methods for backward compatibility
   async generateTTS(request: TTSRequest): Promise<TTSResponse> {
     try {
-      const data = await this.makeRequest(request);
-      return data.output || data;
+      const job = await this.generateTTSAsync(request);
+
+      // Poll until completion
+      let status = job;
+      while (status.status === "IN_QUEUE" || status.status === "IN_PROGRESS") {
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
+        status = await this.pollJobStatus(job.id);
+      }
+
+      if (status.status === "COMPLETED" && status.output) {
+        return status.output as TTSResponse;
+      } else {
+        throw new Error(status.error || "Job failed");
+      }
     } catch (error) {
       console.error("TTS API Error:", error);
       throw error;
@@ -95,8 +172,20 @@ class RunPodAPI {
 
   async cloneVoice(request: VoiceCloneRequest): Promise<VoiceCloneResponse> {
     try {
-      const data = await this.makeRequest(request);
-      return data.output || data;
+      const job = await this.cloneVoiceAsync(request);
+
+      // Poll until completion
+      let status = job;
+      while (status.status === "IN_QUEUE" || status.status === "IN_PROGRESS") {
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
+        status = await this.pollJobStatus(job.id);
+      }
+
+      if (status.status === "COMPLETED" && status.output) {
+        return status.output as VoiceCloneResponse;
+      } else {
+        throw new Error(status.error || "Job failed");
+      }
     } catch (error) {
       console.error("Voice Clone API Error:", error);
       throw error;

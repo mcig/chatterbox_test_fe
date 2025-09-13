@@ -10,24 +10,27 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert } from "@/components/ui/alert";
-import { Mic, Volume2, Languages, Music, Loader2 } from "lucide-react";
+import {
+  Mic,
+  Volume2,
+  Languages,
+  Music,
+  Loader2,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  Clock,
+} from "lucide-react";
 import AudioUpload from "./AudioUpload";
 import AudioPlayer from "./AudioPlayer";
 import { runPodAPI, TTSRequest, VoiceCloneRequest } from "@/services/api";
+import { useTTSStore } from "@/stores/ttsStore";
+import { useJobPolling } from "@/hooks/useJobPolling";
 
 // Lazy load the vocal extraction component
 const VocalExtraction = lazy(() => import("./VocalExtraction"));
 
-interface TTSResponse {
-  audio_base64?: string;
-  error?: string;
-  sample_rate?: number;
-  format?: string;
-  language_id?: string;
-  model_type?: string;
-  mode?: string;
-  voice_cloned?: boolean;
-}
+// Removed unused TTSResponse interface - using types from api.ts
 
 const LANGUAGES = [
   { code: "tr", name: "Turkish" },
@@ -49,20 +52,19 @@ export default function TTSComponent() {
   const [voiceSample, setVoiceSample] = useState<File | null>(null);
   const [sourceAudio, setSourceAudio] = useState<File | null>(null);
   const [targetVoice, setTargetVoice] = useState<File | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<TTSResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("tts");
+
+  // Zustand store
+  const { currentJobId, startJob, setCurrentJob, getCurrentJob, isJobRunning } =
+    useTTSStore();
+
+  const currentJob = getCurrentJob();
+  const { manualPoll } = useJobPolling(currentJobId);
 
   const handleTTS = async () => {
     if (!text.trim()) {
-      setError("Please enter text to synthesize");
       return;
     }
-
-    setIsLoading(true);
-    setError(null);
-    setResult(null);
 
     try {
       const requestData: TTSRequest = {
@@ -83,29 +85,21 @@ export default function TTSComponent() {
         );
       }
 
-      const response = await runPodAPI.generateTTS(requestData);
+      // Start async job
+      const jobResponse = await runPodAPI.generateTTSAsync(requestData);
 
-      if (response.error) {
-        setError(response.error);
-      } else {
-        setResult(response);
-      }
+      // Create job in store
+      startJob(jobResponse.id);
+      setCurrentJob(jobResponse.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
+      console.error("TTS Error:", err);
     }
   };
 
   const handleVoiceClone = async () => {
     if (!sourceAudio || !targetVoice) {
-      setError("Please provide both source audio and target voice files");
       return;
     }
-
-    setIsLoading(true);
-    setError(null);
-    setResult(null);
 
     try {
       const requestData: VoiceCloneRequest = {
@@ -115,17 +109,54 @@ export default function TTSComponent() {
         return_format: "base64",
       };
 
-      const response = await runPodAPI.cloneVoice(requestData);
+      // Start async job
+      const jobResponse = await runPodAPI.cloneVoiceAsync(requestData);
 
-      if (response.error) {
-        setError(response.error);
-      } else {
-        setResult(response);
-      }
+      // Create job in store
+      startJob(jobResponse.id);
+      setCurrentJob(jobResponse.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
+      console.error("Voice Clone Error:", err);
+    }
+  };
+
+  const handleManualPoll = async () => {
+    if (currentJobId) {
+      try {
+        await manualPoll();
+      } catch (error) {
+        console.error("Manual poll failed:", error);
+      }
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Clock className="w-4 h-4 text-yellow-500" />;
+      case "running":
+        return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
+      case "completed":
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case "failed":
+        return <XCircle className="w-4 h-4 text-red-500" />;
+      default:
+        return <Clock className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "Queued";
+      case "running":
+        return "Processing";
+      case "completed":
+        return "Completed";
+      case "failed":
+        return "Failed";
+      default:
+        return "Unknown";
     }
   };
 
@@ -178,7 +209,7 @@ export default function TTSComponent() {
                   onChange={(e) => setText(e.target.value)}
                   placeholder="Enter the text you want to convert to speech..."
                   className="w-full min-h-[100px] p-3 border rounded-md resize-y"
-                  disabled={isLoading}
+                  disabled={isJobRunning(currentJobId || "")}
                 />
               </div>
 
@@ -192,7 +223,7 @@ export default function TTSComponent() {
                     value={languageId}
                     onChange={(e) => setLanguageId(e.target.value)}
                     className="w-full p-2 border rounded-md"
-                    disabled={isLoading}
+                    disabled={isJobRunning(currentJobId || "")}
                   >
                     <option value="">Auto-detect / English</option>
                     {LANGUAGES.map((lang) => (
@@ -208,16 +239,18 @@ export default function TTSComponent() {
                   description="Upload a voice sample to clone for TTS generation"
                   file={voiceSample}
                   onFileChange={setVoiceSample}
-                  disabled={isLoading}
+                  disabled={isJobRunning(currentJobId || "")}
                 />
               </div>
 
               <Button
                 onClick={handleTTS}
-                disabled={isLoading || !text.trim()}
+                disabled={isJobRunning(currentJobId || "") || !text.trim()}
                 className="w-full"
               >
-                {isLoading ? "Generating..." : "Generate Speech"}
+                {isJobRunning(currentJobId || "")
+                  ? "Generating..."
+                  : "Generate Speech"}
               </Button>
             </CardContent>
           </Card>
@@ -238,7 +271,7 @@ export default function TTSComponent() {
                   description="Audio file to clone voice from"
                   file={sourceAudio}
                   onFileChange={setSourceAudio}
-                  disabled={isLoading}
+                  disabled={isJobRunning(currentJobId || "")}
                   required
                 />
 
@@ -247,17 +280,23 @@ export default function TTSComponent() {
                   description="Voice sample to clone to the source audio"
                   file={targetVoice}
                   onFileChange={setTargetVoice}
-                  disabled={isLoading}
+                  disabled={isJobRunning(currentJobId || "")}
                   required
                 />
               </div>
 
               <Button
                 onClick={handleVoiceClone}
-                disabled={isLoading || !sourceAudio || !targetVoice}
+                disabled={
+                  isJobRunning(currentJobId || "") ||
+                  !sourceAudio ||
+                  !targetVoice
+                }
                 className="w-full"
               >
-                {isLoading ? "Cloning Voice..." : "Clone Voice"}
+                {isJobRunning(currentJobId || "")
+                  ? "Cloning Voice..."
+                  : "Clone Voice"}
               </Button>
             </CardContent>
           </Card>
@@ -292,31 +331,70 @@ export default function TTSComponent() {
         </TabsContent>
       </Tabs>
 
-      {error && (
-        <Alert variant="destructive">
-          <p>{error}</p>
-        </Alert>
-      )}
-
-      {result && result.audio_base64 && (
-        <AudioPlayer
-          audioBase64={result.audio_base64}
-          title={
-            result.voice_cloned ? "Voice Cloned Audio" : "Generated Speech"
-          }
-          description={
-            result.voice_cloned
-              ? "Audio with cloned voice"
-              : "Text-to-speech generated audio"
-          }
-          sampleRate={result.sample_rate}
-          modelType={result.model_type}
-          languageId={result.language_id}
-          voiceCloned={result.voice_cloned}
-          filename={`${
-            result.voice_cloned ? "voice_cloned" : "tts"
-          }_${Date.now()}.wav`}
-        />
+      {/* Job Status Display */}
+      {currentJob && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {getStatusIcon(currentJob.status)}
+                Job Status: {getStatusText(currentJob.status)}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleManualPoll}
+                disabled={
+                  currentJob.status === "completed" ||
+                  currentJob.status === "failed"
+                }
+              >
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            </CardTitle>
+            <CardDescription>
+              Job ID: {currentJob.id}
+              {currentJob.updatedAt && (
+                <span className="ml-2 text-xs">
+                  Last updated: {currentJob.updatedAt.toLocaleTimeString()}
+                </span>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {currentJob.error && (
+              <Alert variant="destructive" className="mb-4">
+                <p>{currentJob.error}</p>
+              </Alert>
+            )}
+            {currentJob.result && currentJob.result.audio_base64 && (
+              <AudioPlayer
+                audioBase64={currentJob.result.audio_base64}
+                title={
+                  currentJob.result.voice_cloned
+                    ? "Voice Cloned Audio"
+                    : "Generated Speech"
+                }
+                description={
+                  currentJob.result.voice_cloned
+                    ? "Audio with cloned voice"
+                    : `Generated speech${
+                        currentJob.result.language_id
+                          ? ` in ${currentJob.result.language_id}`
+                          : ""
+                      }`
+                }
+                sampleRate={currentJob.result.sample_rate}
+                modelType={currentJob.result.model_type}
+                languageId={currentJob.result.language_id}
+                voiceCloned={currentJob.result.voice_cloned}
+                filename={`${
+                  currentJob.result.voice_cloned ? "voice_cloned" : "tts"
+                }_${Date.now()}.wav`}
+              />
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );
